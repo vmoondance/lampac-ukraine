@@ -47,7 +47,8 @@ namespace Unimay.Controllers
         {
             string memKey = $"unimay:search:{title}:{original_title}:{serial}";
 
-            return await InvkSemaphore(init, memKey, async () =>
+            var rch = new RchClient(HttpContext, host, init, requestInfo);
+            return await InvkSemaphore(host, rch, async () =>
             {
                 var searchResults = await invoke.Search(title, original_title, serial);
                 if (searchResults == null || searchResults.Content.Count == 0)
@@ -69,7 +70,8 @@ namespace Unimay.Controllers
         {
             string memKey = $"unimay:release:{code}";
 
-            return await InvkSemaphore(init, memKey, async () =>
+            var rch = new RchClient(HttpContext, host, init, requestInfo);
+            return await InvkSemaphore(host, rch, async () =>
             {
                 var releaseDetail = await invoke.Release(code);
                 if (releaseDetail == null)
