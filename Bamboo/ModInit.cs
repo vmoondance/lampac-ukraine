@@ -1,3 +1,4 @@
+using Newtonsoft.Json.Linq;
 using Shared;
 using Shared.Engine;
 using Shared.Models.Online.Settings;
@@ -26,7 +27,13 @@ namespace Bamboo
                     list = new string[] { "socks5://ip:port" }
                 }
             };
-            Bamboo = ModuleInvoke.Conf("Bamboo", Bamboo).ToObject<OnlinesSettings>();
+            var conf = ModuleInvoke.Conf("Bamboo", Bamboo);
+            bool hasApn = ApnHelper.TryGetInitConf(conf, out bool apnEnabled, out string apnHost);
+            conf.Remove("apn");
+            conf.Remove("apn_host");
+            Bamboo = conf.ToObject<OnlinesSettings>();
+            if (hasApn)
+                ApnHelper.ApplyInitConf(apnEnabled, apnHost, Bamboo);
 
             // Виводити "уточнити пошук"
             AppInit.conf.online.with_search.Add("bamboo");
