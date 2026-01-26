@@ -10,6 +10,7 @@ namespace UaTUT
     public class ModInit
     {
         public static OnlinesSettings UaTUT;
+        public static bool ApnHostProvided;
 
         /// <summary>
         /// модуль загружен
@@ -36,6 +37,16 @@ namespace UaTUT
             UaTUT = conf.ToObject<OnlinesSettings>();
             if (hasApn)
                 ApnHelper.ApplyInitConf(apnEnabled, apnHost, UaTUT);
+            ApnHostProvided = hasApn && apnEnabled && !string.IsNullOrWhiteSpace(apnHost);
+            if (hasApn && apnEnabled)
+            {
+                UaTUT.streamproxy = false;
+            }
+            else if (UaTUT.streamproxy)
+            {
+                UaTUT.apnstream = false;
+                UaTUT.apn = null;
+            }
 
             // Виводити "уточнити пошук"
             AppInit.conf.online.with_search.Add("uatut");

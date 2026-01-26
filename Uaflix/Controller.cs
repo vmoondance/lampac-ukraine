@@ -340,11 +340,11 @@ namespace Uaflix.Controllers
         string BuildStreamUrl(OnlinesSettings init, string streamLink)
         {
             string link = accsArgs(streamLink);
-            if (ApnHelper.IsAshdiUrl(link) && ApnHelper.IsEnabled(init))
-                return ApnHelper.WrapUrl(init, link);
-
-            if (init?.apnstream == true || init?.apn != null)
+            if (ApnHelper.IsEnabled(init))
             {
+                if (ModInit.ApnHostProvided || ApnHelper.IsAshdiUrl(link))
+                    return ApnHelper.WrapUrl(init, link);
+
                 var noApn = (OnlinesSettings)init.Clone();
                 noApn.apnstream = false;
                 noApn.apn = null;

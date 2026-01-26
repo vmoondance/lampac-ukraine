@@ -1,21 +1,16 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Shared;
 using Shared.Engine;
-using Newtonsoft.Json.Linq;
-﻿using Shared;
-using Shared.Models.Online.Settings;
 using Shared.Models.Module;
-
-using Newtonsoft.Json;
-using Shared;
-using Shared.Engine;
-using Newtonsoft.Json.Linq;
+using Shared.Models.Online.Settings;
 
 namespace AnimeON
 {
     public class ModInit
     {
         public static OnlinesSettings AnimeON;
+        public static bool ApnHostProvided;
 
         /// <summary>
         /// модуль загружен
@@ -41,6 +36,16 @@ namespace AnimeON
             AnimeON = conf.ToObject<OnlinesSettings>();
             if (hasApn)
                 ApnHelper.ApplyInitConf(apnEnabled, apnHost, AnimeON);
+            ApnHostProvided = hasApn && apnEnabled && !string.IsNullOrWhiteSpace(apnHost);
+            if (hasApn && apnEnabled)
+            {
+                AnimeON.streamproxy = false;
+            }
+            else if (AnimeON.streamproxy)
+            {
+                AnimeON.apnstream = false;
+                AnimeON.apn = null;
+            }
 
             // Виводити "уточнити пошук"
             AppInit.conf.online.with_search.Add("animeon");

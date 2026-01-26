@@ -159,20 +159,37 @@ namespace StarLight.Controllers
                 var streamQuality = new StreamQualityTpl();
                 foreach (var item in result.Streams)
                 {
-                    string streamLink = HostStreamProxy(init, accsArgs(item.link), proxy: proxyManager.Get());
+                    string streamLink = BuildStreamUrl(init, item.link);
                     streamQuality.Append(streamLink, item.quality);
                 }
 
                 var first = streamQuality.Firts();
                 string streamUrl = string.IsNullOrEmpty(first.link)
-                    ? HostStreamProxy(init, accsArgs(result.Stream), proxy: proxyManager.Get())
+                    ? BuildStreamUrl(init, result.Stream)
                     : first.link;
 
                 return Content(VideoTpl.ToJson("play", streamUrl, videoTitle, streamquality: streamQuality), "application/json; charset=utf-8");
             }
 
-            string defaultUrl = HostStreamProxy(init, accsArgs(result.Stream), proxy: proxyManager.Get());
+            string defaultUrl = BuildStreamUrl(init, result.Stream);
             return Content(VideoTpl.ToJson("play", defaultUrl, videoTitle), "application/json; charset=utf-8");
+        }
+
+        string BuildStreamUrl(OnlinesSettings init, string streamLink)
+        {
+            string link = accsArgs(streamLink);
+            if (ApnHelper.IsEnabled(init))
+            {
+                if (ModInit.ApnHostProvided || ApnHelper.IsAshdiUrl(link))
+                    return ApnHelper.WrapUrl(init, link);
+
+                var noApn = (OnlinesSettings)init.Clone();
+                noApn.apnstream = false;
+                noApn.apn = null;
+                return HostStreamProxy(noApn, link, proxy: proxyManager.Get());
+            }
+
+            return HostStreamProxy(init, link, proxy: proxyManager.Get());
         }
 
         private static string GetSeasonNumber(SeasonInfo season, int fallbackIndex)

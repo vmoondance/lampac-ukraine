@@ -9,6 +9,7 @@ namespace Bamboo
     public class ModInit
     {
         public static OnlinesSettings Bamboo;
+        public static bool ApnHostProvided;
 
         /// <summary>
         /// модуль загружен
@@ -34,6 +35,16 @@ namespace Bamboo
             Bamboo = conf.ToObject<OnlinesSettings>();
             if (hasApn)
                 ApnHelper.ApplyInitConf(apnEnabled, apnHost, Bamboo);
+            ApnHostProvided = hasApn && apnEnabled && !string.IsNullOrWhiteSpace(apnHost);
+            if (hasApn && apnEnabled)
+            {
+                Bamboo.streamproxy = false;
+            }
+            else if (Bamboo.streamproxy)
+            {
+                Bamboo.apnstream = false;
+                Bamboo.apn = null;
+            }
 
             // Виводити "уточнити пошук"
             AppInit.conf.online.with_search.Add("bamboo");

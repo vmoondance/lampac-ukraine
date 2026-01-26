@@ -93,7 +93,7 @@ namespace Bamboo.Controllers
                 {
                     int episodeNumber = ep.Episode ?? index;
                     string episodeName = string.IsNullOrEmpty(ep.Title) ? $"Епізод {episodeNumber}" : ep.Title;
-                    string streamUrl = HostStreamProxy(init, accsArgs(ep.Url));
+                    string streamUrl = BuildStreamUrl(init, ep.Url);
                     episode_tpl.Append(episodeName, title ?? original_title, "1", episodeNumber.ToString("D2"), streamUrl);
                     index++;
                 }
@@ -114,12 +114,29 @@ namespace Bamboo.Controllers
                 {
                     var stream = streams[i];
                     string label = !string.IsNullOrEmpty(stream.Title) ? stream.Title : $"Варіант {i + 1}";
-                    string streamUrl = HostStreamProxy(init, accsArgs(stream.Url));
+                    string streamUrl = BuildStreamUrl(init, stream.Url);
                     movie_tpl.Append(label, streamUrl);
                 }
 
                 return rjson ? Content(movie_tpl.ToJson(), "application/json; charset=utf-8") : Content(movie_tpl.ToHtml(), "text/html; charset=utf-8");
             }
+        }
+
+        string BuildStreamUrl(OnlinesSettings init, string streamLink)
+        {
+            string link = accsArgs(streamLink);
+            if (ApnHelper.IsEnabled(init))
+            {
+                if (ModInit.ApnHostProvided || ApnHelper.IsAshdiUrl(link))
+                    return ApnHelper.WrapUrl(init, link);
+
+                var noApn = (OnlinesSettings)init.Clone();
+                noApn.apnstream = false;
+                noApn.apn = null;
+                return HostStreamProxy(noApn, link);
+            }
+
+            return HostStreamProxy(init, link);
         }
     }
 }

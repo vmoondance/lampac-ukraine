@@ -9,6 +9,7 @@ namespace Mikai
     public class ModInit
     {
         public static OnlinesSettings Mikai;
+        public static bool ApnHostProvided;
 
         /// <summary>
         /// модуль загружен
@@ -36,6 +37,16 @@ namespace Mikai
             Mikai = conf.ToObject<OnlinesSettings>();
             if (hasApn)
                 ApnHelper.ApplyInitConf(apnEnabled, apnHost, Mikai);
+            ApnHostProvided = hasApn && apnEnabled && !string.IsNullOrWhiteSpace(apnHost);
+            if (hasApn && apnEnabled)
+            {
+                Mikai.streamproxy = false;
+            }
+            else if (Mikai.streamproxy)
+            {
+                Mikai.apnstream = false;
+                Mikai.apn = null;
+            }
 
             // Виводити "уточнити пошук"
             AppInit.conf.online.with_search.Add("mikai");

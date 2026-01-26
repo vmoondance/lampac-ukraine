@@ -10,6 +10,7 @@ namespace Uaflix
     public class ModInit
     {
         public static OnlinesSettings UaFlix;
+        public static bool ApnHostProvided;
 
         /// <summary>
         /// модуль загружен
@@ -40,6 +41,16 @@ namespace Uaflix
             UaFlix = conf.ToObject<OnlinesSettings>();
             if (hasApn)
                 ApnHelper.ApplyInitConf(apnEnabled, apnHost, UaFlix);
+            ApnHostProvided = hasApn && apnEnabled && !string.IsNullOrWhiteSpace(apnHost);
+            if (hasApn && apnEnabled)
+            {
+                UaFlix.streamproxy = false;
+            }
+            else if (UaFlix.streamproxy)
+            {
+                UaFlix.apnstream = false;
+                UaFlix.apn = null;
+            }
             
             // Виводити "уточнити пошук"
             AppInit.conf.online.with_search.Add("uaflix");

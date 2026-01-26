@@ -346,8 +346,16 @@ namespace AnimeON.Controllers
         string BuildStreamUrl(OnlinesSettings init, string streamLink, List<HeadersModel> headers, bool forceProxy)
         {
             string link = accsArgs(streamLink);
-            if (ApnHelper.IsAshdiUrl(link) && ApnHelper.IsEnabled(init))
-                return ApnHelper.WrapUrl(init, link);
+            if (ApnHelper.IsEnabled(init))
+            {
+                if (ModInit.ApnHostProvided || ApnHelper.IsAshdiUrl(link))
+                    return ApnHelper.WrapUrl(init, link);
+
+                var noApn = (OnlinesSettings)init.Clone();
+                noApn.apnstream = false;
+                noApn.apn = null;
+                return HostStreamProxy(noApn, link, headers: headers, force_streamproxy: forceProxy);
+            }
 
             return HostStreamProxy(init, link, headers: headers, force_streamproxy: forceProxy);
         }

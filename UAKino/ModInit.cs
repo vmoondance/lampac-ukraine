@@ -8,6 +8,7 @@ namespace UAKino
     public class ModInit
     {
         public static OnlinesSettings UAKino;
+        public static bool ApnHostProvided;
 
         /// <summary>
         /// модуль загружен
@@ -33,6 +34,16 @@ namespace UAKino
             UAKino = conf.ToObject<OnlinesSettings>();
             if (hasApn)
                 ApnHelper.ApplyInitConf(apnEnabled, apnHost, UAKino);
+            ApnHostProvided = hasApn && apnEnabled && !string.IsNullOrWhiteSpace(apnHost);
+            if (hasApn && apnEnabled)
+            {
+                UAKino.streamproxy = false;
+            }
+            else if (UAKino.streamproxy)
+            {
+                UAKino.apnstream = false;
+                UAKino.apn = null;
+            }
 
             // Виводити "уточнити пошук"
             AppInit.conf.online.with_search.Add("uakino");

@@ -9,6 +9,7 @@ namespace AshdiBase
     public class ModInit
     {
         public static OnlinesSettings AshdiBase;
+        public static bool ApnHostProvided;
 
         /// <summary>
         /// модуль загружен
@@ -35,6 +36,16 @@ namespace AshdiBase
             AshdiBase = conf.ToObject<OnlinesSettings>();
             if (hasApn)
                 ApnHelper.ApplyInitConf(apnEnabled, apnHost, AshdiBase);
+            ApnHostProvided = hasApn && apnEnabled && !string.IsNullOrWhiteSpace(apnHost);
+            if (hasApn && apnEnabled)
+            {
+                AshdiBase.streamproxy = false;
+            }
+            else if (AshdiBase.streamproxy)
+            {
+                AshdiBase.apnstream = false;
+                AshdiBase.apn = null;
+            }
         }
     }
 }

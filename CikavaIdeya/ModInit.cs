@@ -16,6 +16,7 @@ namespace CikavaIdeya
     public class ModInit
     {
         public static OnlinesSettings CikavaIdeya;
+        public static bool ApnHostProvided;
 
         /// <summary>
         /// модуль загружен
@@ -41,6 +42,16 @@ namespace CikavaIdeya
             CikavaIdeya = conf.ToObject<OnlinesSettings>();
             if (hasApn)
                 ApnHelper.ApplyInitConf(apnEnabled, apnHost, CikavaIdeya);
+            ApnHostProvided = hasApn && apnEnabled && !string.IsNullOrWhiteSpace(apnHost);
+            if (hasApn && apnEnabled)
+            {
+                CikavaIdeya.streamproxy = false;
+            }
+            else if (CikavaIdeya.streamproxy)
+            {
+                CikavaIdeya.apnstream = false;
+                CikavaIdeya.apn = null;
+            }
 
             // Виводити "уточнити пошук"
             AppInit.conf.online.with_search.Add("cikavaideya");

@@ -1,13 +1,15 @@
+using Newtonsoft.Json.Linq;
 using Shared;
 using Shared.Engine;
-using Shared.Models.Online.Settings;
 using Shared.Models.Module;
+using Shared.Models.Online.Settings;
 
 namespace StarLight
 {
     public class ModInit
     {
         public static OnlinesSettings StarLight;
+        public static bool ApnHostProvided;
 
         /// <summary>
         /// модуль загружен
@@ -26,7 +28,23 @@ namespace StarLight
                     list = new string[] { "socks5://ip:port" }
                 }
             };
-            StarLight = ModuleInvoke.Conf("StarLight", StarLight).ToObject<OnlinesSettings>();
+            var conf = ModuleInvoke.Conf("StarLight", StarLight);
+            bool hasApn = ApnHelper.TryGetInitConf(conf, out bool apnEnabled, out string apnHost);
+            conf.Remove("apn");
+            conf.Remove("apn_host");
+            StarLight = conf.ToObject<OnlinesSettings>();
+            if (hasApn)
+                ApnHelper.ApplyInitConf(apnEnabled, apnHost, StarLight);
+            ApnHostProvided = hasApn && apnEnabled && !string.IsNullOrWhiteSpace(apnHost);
+            if (hasApn && apnEnabled)
+            {
+                StarLight.streamproxy = false;
+            }
+            else if (StarLight.streamproxy)
+            {
+                StarLight.apnstream = false;
+                StarLight.apn = null;
+            }
 
             // Виводити "уточнити пошук"
             AppInit.conf.online.with_search.Add("starlight");
