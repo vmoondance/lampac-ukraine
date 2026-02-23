@@ -26,10 +26,14 @@ namespace Makhno
         [HttpGet]
         public async Task<ActionResult> Index(long id, string imdb_id, long kinopoisk_id, string title, string original_title, string original_language, int year, string source, int serial, string account_email, string t, string search = null, string q = null, int s = -1, int season = -1, bool rjson = false, bool checksearch = false)
         {
+            System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"Makhno Index called: title={title}, search={search}, q={q}, checksearch={checksearch}\n");
             if (checksearch)
             {
                 if (AppInit.conf?.online?.checkOnlineSearch != true)
+                {
+                    System.IO.File.AppendAllText("/tmp/lampac_debug.log", "Makhno checksearch: checkOnlineSearch is false\n");
                     return OnError();
+                }
 
                 return Content("data-json=", "text/plain; charset=utf-8");
             }
@@ -43,6 +47,7 @@ namespace Makhno
                 title = q;
 
             var init = await loadKit(ModInit.Makhno);
+            System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"Makhno init: enable={init.enable}, host={init.host}\n");
             if (!init.enable)
                 return OnError();
             Initialization(init);
@@ -493,23 +498,33 @@ namespace Makhno
             });
 
             if (searchResults == null || searchResults.Count == 0)
+            {
+                System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"ResolvePlaySource: No search results found for {searchQuery}\n");
                 return null;
+            }
 
-            var selected = invoke.SelectUaTUTItem(searchResults, imdbId, year > 0 ? year : null, title, originalTitle);
+            var selected = invoke.SelectUaTUTItem(searchResults, imdbId, year > 0 ? year : null, title, originalTitle, serial);
             if (selected == null)
+            {
+                System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"ResolvePlaySource: No item selected from {searchResults.Count} results\n");
                 return null;
+            }
+            System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"ResolvePlaySource: Selected item {selected.Title} ({selected.Id})\n");
 
+            System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"ResolvePlaySource: Calling InvokeCache for makhno:ashdi:{selected.Id}\n");
             var ashdiPath = await InvokeCache<string>($"makhno:ashdi:{selected.Id}", TimeSpan.FromMinutes(10), async () =>
             {
+                System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"ResolvePlaySource: Cache MISS, calling GetAshdiPath({selected.Id})\n");
                 return await invoke.GetAshdiPath(selected.Id);
             });
+            System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"ResolvePlaySource: ashdiPath result='{ashdiPath}'\n");
 
             if (string.IsNullOrEmpty(ashdiPath))
                 return null;
 
             playUrl = invoke.BuildAshdiUrl(ashdiPath);
 
-            bool isSerial = serial == 1 || IsSerialByCategory(selected.Category, serial) || IsSerialByUrl(playUrl, serial);
+            bool isSerial = serial == 1 || invoke.IsSerialByCategory(selected.Category, serial) || IsSerialByUrl(playUrl, serial);
 
             return new ResolveResult
             {
@@ -521,25 +536,7 @@ namespace Makhno
             };
         }
 
-        private bool IsSerialByCategory(string category, int serial)
-        {
-            if (string.IsNullOrWhiteSpace(category))
-                return false;
 
-            if (category.Equals("Аніме", StringComparison.OrdinalIgnoreCase)
-                || category.Equals("Аниме", StringComparison.OrdinalIgnoreCase))
-            {
-                return serial == 1;
-            }
-
-            return category.Equals("Серіал", StringComparison.OrdinalIgnoreCase)
-                || category.Equals("Сериал", StringComparison.OrdinalIgnoreCase)
-                || category.Equals("Аніме", StringComparison.OrdinalIgnoreCase)
-                || category.Equals("Аниме", StringComparison.OrdinalIgnoreCase)
-                || category.Equals("Мультсеріал", StringComparison.OrdinalIgnoreCase)
-                || category.Equals("Мультсериал", StringComparison.OrdinalIgnoreCase)
-                || category.Equals("TV", StringComparison.OrdinalIgnoreCase);
-        }
 
         private bool IsSerialByUrl(string url, int serial)
         {

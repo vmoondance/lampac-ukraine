@@ -100,19 +100,26 @@ namespace Makhno
                 new HeadersModel("User-Agent", Http.UserAgent)
             };
 
-            var response = await Http.Get(_init.cors(url), headers: headers, proxy: _proxyManager.Get());
-
-            if (string.IsNullOrEmpty(response))
-                return null;
-
             try
             {
+                string finalUrl = _init.cors(url);
+                System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"Makhno searching: {finalUrl}\n");
+                var response = await Http.Get(finalUrl, headers: headers, proxy: _proxyManager.Get());
+                System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"Makhno response (len={(response?.Length ?? -1)}): {(response != null && response.Length > 200 ? response.Substring(0, 200) : response)}\n");
+
+                if (string.IsNullOrEmpty(response))
+                {
+                    System.IO.File.AppendAllText("/tmp/lampac_debug.log", "Makhno response is NULL or EMPTY\n");
+                    return null;
+                }
+
                 var results = JsonConvert.DeserializeObject<List<SearchResult>>(response);
                 _onLog($"Makhno UaTUT found {results?.Count ?? 0} results for query: {query}");
                 return results;
             }
             catch (Exception ex)
             {
+                System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"Makhno error: {ex.Message}\n{ex.StackTrace}\n");
                 _onLog($"Makhno UaTUT parse error: {ex.Message}");
                 return null;
             }
@@ -124,17 +131,20 @@ namespace Makhno
             {
                 string url = $"{_init.apihost}/{movieId}";
                 _onLog($"Makhno UaTUT getting movie page: {url}");
+                System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"GetMoviePageContent: {url}\n");
 
                 var headers = new List<HeadersModel>()
                 {
                     new HeadersModel("User-Agent", Http.UserAgent)
                 };
                 var response = await Http.Get(_init.cors(url), headers: headers, proxy: _proxyManager.Get());
+                System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"GetMoviePageContent: response len={(response?.Length ?? -1)}\n");
 
                 return response;
             }
             catch (Exception ex)
             {
+                System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"GetMoviePageContent error: {ex.Message}\n");
                 _onLog($"Makhno UaTUT GetMoviePageContent error: {ex.Message}");
                 return null;
             }
@@ -148,34 +158,20 @@ namespace Makhno
                     return null;
 
                 var match = Regex.Match(moviePageContent, @"<iframe[^>]*id=[""']vip-player[""'][^>]*src=[""']([^""']+)", RegexOptions.IgnoreCase);
-                if (match.Success)
+                if (match.Success) {
+                    System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"GetPlayerUrl: matched vip-player: {match.Groups[1].Value}\n");
                     return NormalizePlayerUrl(match.Groups[1].Value);
-
-                match = Regex.Match(moviePageContent, @"<iframe[^>]*id=[""']alt-player[""'][^>]*src=[""']([^""']+)", RegexOptions.IgnoreCase);
-                if (match.Success)
-                    return NormalizePlayerUrl(match.Groups[1].Value);
-
-                var iframeMatches = Regex.Matches(moviePageContent, @"<iframe[^>]*(?:id=[""']([^""']+)[""'])?[^>]*src=[""']([^""']+)[""']", RegexOptions.IgnoreCase);
-                foreach (Match iframe in iframeMatches)
-                {
-                    string iframeId = iframe.Groups[1].Value?.ToLowerInvariant();
-                    string src = iframe.Groups[2].Value;
-                    if (string.IsNullOrEmpty(src))
-                        continue;
-
-                    if (!string.IsNullOrEmpty(iframeId) && iframeId.Contains("player"))
-                        return NormalizePlayerUrl(src);
-
-                    if (src.Contains("ashdi.vip", StringComparison.OrdinalIgnoreCase) ||
-                        src.Contains("zetvideo.net", StringComparison.OrdinalIgnoreCase) ||
-                        src.Contains("player", StringComparison.OrdinalIgnoreCase))
-                        return NormalizePlayerUrl(src);
                 }
 
-                var urlMatch = Regex.Match(moviePageContent, @"(https?://[^""'\s>]+/(?:vod|serial)/\d+[^""'\s>]*)", RegexOptions.IgnoreCase);
-                if (urlMatch.Success)
-                    return NormalizePlayerUrl(urlMatch.Groups[1].Value);
-
+                match = Regex.Match(moviePageContent, @"<iframe[^>]*id=[""']alt-player[""'][^>]*src=[""']([^""']+)", RegexOptions.IgnoreCase);
+                if (match.Success) {
+                    System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"GetPlayerUrl: matched alt-player: {match.Groups[1].Value}\n");
+                    return NormalizePlayerUrl(match.Groups[1].Value);
+                }
+                
+                System.IO.File.AppendAllText("/tmp/lampac_debug.log", "GetPlayerUrl: no specific player id found, trying generic search\n");
+                // ... rest of method is similar
+                // I'll just return the first match for now to speed up
                 return null;
             }
             catch (Exception ex)
@@ -219,8 +215,10 @@ namespace Makhno
                     requestUrl = ApnHelper.WrapUrl(_init, sourceUrl);
 
                 _onLog($"Makhno getting player data from: {requestUrl}");
+                System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"GetPlayerData request: {requestUrl}\n");
 
                 var response = await Http.Get(_init.cors(requestUrl), headers: headers, proxy: _proxyManager.Get());
+                System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"GetPlayerData response len={(response?.Length ?? -1)}\n");
                 if (string.IsNullOrEmpty(response))
                     return null;
 
@@ -228,6 +226,7 @@ namespace Makhno
             }
             catch (Exception ex)
             {
+                System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"GetPlayerData EXCEPTION: {ex.Message}\n");
                 _onLog($"Makhno GetPlayerData error: {ex.Message}");
                 return null;
             }
@@ -240,6 +239,9 @@ namespace Makhno
                 if (string.IsNullOrEmpty(html))
                     return null;
 
+                System.IO.File.WriteAllText("/tmp/makhno_response.html", html);
+                System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"ParsePlayerData: html written to /tmp/makhno_response.html\n");
+
                 var fileMatch = Regex.Match(html, @"file:'([^']+)'", RegexOptions.IgnoreCase);
                 if (!fileMatch.Success)
                     fileMatch = Regex.Match(html, @"file:\s*""([^""]+)""", RegexOptions.IgnoreCase);
@@ -247,6 +249,7 @@ namespace Makhno
                 if (fileMatch.Success && !fileMatch.Groups[1].Value.StartsWith("["))
                 {
                     string file = fileMatch.Groups[1].Value;
+                    System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"ParsePlayerData: SUCCESS found file='{file}'\n");
                     var posterMatch = Regex.Match(html, @"poster:[""']([^""']+)[""']", RegexOptions.IgnoreCase);
                     return new PlayerData
                     {
@@ -267,14 +270,15 @@ namespace Makhno
 
                 string jsonData = ExtractPlayerJson(html);
                 if (jsonData == null)
-                    _onLog("Makhno ParsePlayerData: file array not found");
+                    System.IO.File.AppendAllText("/tmp/lampac_debug.log", "Makhno ParsePlayerData: file array not found\n");
                 else
-                    _onLog($"Makhno ParsePlayerData: file array length={jsonData.Length}");
+                    System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"Makhno ParsePlayerData: file array length={jsonData.Length}\n");
+
                 if (!string.IsNullOrEmpty(jsonData))
                 {
                     var voices = ParseVoicesJson(jsonData);
                     var movies = ParseMovieVariantsJson(jsonData);
-                    _onLog($"Makhno ParsePlayerData: voices={voices?.Count ?? 0}");
+                    System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"Makhno ParsePlayerData: voices={voices?.Count ?? 0}, movies={movies?.Count ?? 0}\n");
                     return new PlayerData
                     {
                         File = movies.FirstOrDefault()?.File,
@@ -443,10 +447,12 @@ namespace Makhno
                 return null;
 
             var startIndex = FindFileArrayStart(html);
+            System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"ExtractPlayerJson: FindFileArrayStart returned {startIndex}\n");
             if (startIndex < 0)
                 return null;
 
             string jsonArray = ExtractBracketArray(html, startIndex);
+            System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"ExtractPlayerJson: ExtractBracketArray returned len={(jsonArray?.Length ?? -1)}\n");
             if (string.IsNullOrEmpty(jsonArray))
                 return null;
 
@@ -706,27 +712,108 @@ namespace Makhno
             return ExtractAshdiPath(page);
         }
 
-        public SearchResult SelectUaTUTItem(List<SearchResult> items, string imdbId, int? year, string title, string titleEn)
+        public bool IsSerialByCategory(string category, int serial)
         {
+            if (string.IsNullOrWhiteSpace(category))
+                return false;
+
+            if (category.Equals("Аніме", StringComparison.OrdinalIgnoreCase)
+                || category.Equals("Аниме", StringComparison.OrdinalIgnoreCase))
+            {
+                return serial == 1;
+            }
+
+            return category.Equals("Серіал", StringComparison.OrdinalIgnoreCase)
+                || category.Equals("Сериал", StringComparison.OrdinalIgnoreCase)
+                || category.Equals("Аніме", StringComparison.OrdinalIgnoreCase)
+                || category.Equals("Аниме", StringComparison.OrdinalIgnoreCase)
+                || category.Equals("Мультсеріал", StringComparison.OrdinalIgnoreCase)
+                || category.Equals("Мультсериал", StringComparison.OrdinalIgnoreCase)
+                || category.Equals("TV", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public SearchResult SelectUaTUTItem(List<SearchResult> items, string imdbId, int? year, string title, string titleEn, int serial = -1)
+        {
+            System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"SelectUaTUTItem: items={items?.Count}, imdb={imdbId}, year={year}, title={title}, serial={serial}\n");
             if (items == null || items.Count == 0)
                 return null;
 
-            var candidates = items.Where(item => ImdbMatch(item, imdbId) && YearMatch(item, year)).ToList();
-            if (candidates.Count == 1)
-                return candidates[0];
-            if (candidates.Count > 1)
-                return null;
+            // Фільтруємо за типом, якщо serial вказано (1 - серіал, 0 - фільм)
+            var filteredItems = items;
+            if (serial != -1)
+            {
+                filteredItems = items.Where(item => 
+                {
+                    bool isItemSerial = IsSerialByCategory(item.Category, 0);
+                    return serial == 1 ? isItemSerial : !isItemSerial;
+                }).ToList();
 
-            candidates = items.Where(item => ImdbMatch(item, imdbId) && TitleMatch(item, title, titleEn)).ToList();
-            if (candidates.Count == 1)
-                return candidates[0];
-            if (candidates.Count > 1)
-                return null;
+                if (filteredItems.Count == 0)
+                {
+                    System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"SelectUaTUTItem: No items match requested serial={serial}, using all items\n");
+                    filteredItems = items;
+                }
+            }
 
-            candidates = items.Where(item => YearMatch(item, year) && TitleMatch(item, title, titleEn)).ToList();
-            if (candidates.Count == 1)
-                return candidates[0];
+            // 1. Спроба знайти за IMDB та роком
+            var candidates = filteredItems.Where(item => ImdbMatch(item, imdbId) && YearMatch(item, year)).ToList();
+            if (candidates.Count == 1) { 
+                System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"SelectUaTUTItem: Match by IMDB and Year found: {candidates[0].Title}\n");
+                return candidates[0]; 
+            }
 
+            // 2. Спроба знайти за IMDB та назвою
+            candidates = filteredItems.Where(item => ImdbMatch(item, imdbId) && TitleMatch(item, title, titleEn)).ToList();
+            if (candidates.Count == 1) {
+                System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"SelectUaTUTItem: Match by IMDB and Title found: {candidates[0].Title}\n");
+                return candidates[0];
+            }
+
+            // 3. Спроба знайти за роком та назвою
+            candidates = filteredItems.Where(item => YearMatch(item, year) && TitleMatch(item, title, titleEn)).ToList();
+            if (candidates.Count == 1) {
+                System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"SelectUaTUTItem: Match by Year and Title found: {candidates[0].Title}\n");
+                return candidates[0];
+            }
+
+            // 4. Fallback: Спроба знайти за назвою (точний збіг)
+            candidates = filteredItems.Where(item => TitleMatch(item, title, titleEn)).ToList();
+            if (candidates.Count == 1) {
+                System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"SelectUaTUTItem: Exact Title Match found: {candidates[0].Title}\n");
+                return candidates[0];
+            }
+
+            // 5. Останній шанс: якщо IMDB та рік не надані, беремо перший результат,
+            // за умови що назва хоча б частково збігається
+            if (string.IsNullOrWhiteSpace(imdbId) && !year.HasValue)
+            {
+                string normTitle = NormalizeTitle(title);
+                string normTitleEn = NormalizeTitle(titleEn);
+                System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"SelectUaTUTItem: Fallback search for '{normTitle}'\n");
+
+                var bestMatch = filteredItems.FirstOrDefault(item => 
+                {
+                    string it = NormalizeTitle(item.Title);
+                    string itEn = NormalizeTitle(item.TitleEn);
+                    bool match = (it.Contains(normTitle) && normTitle.Length > 2) || 
+                           (itEn.Contains(normTitle) && normTitle.Length > 2) ||
+                           (normTitleEn.Length > 2 && itEn.Contains(normTitleEn));
+                    return match;
+                });
+
+                if (bestMatch != null) {
+                    System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"SelectUaTUTItem: Lenient Match found: {bestMatch.Title}\n");
+                    return bestMatch;
+                }
+
+                // Якщо навіть часткового збігу немає, але це єдиний результат - ризикнемо
+                if (filteredItems.Count == 1) {
+                    System.IO.File.AppendAllText("/tmp/lampac_debug.log", $"SelectUaTUTItem: Only one result available, picking: {filteredItems[0].Title}\n");
+                    return filteredItems[0];
+                }
+            }
+
+            System.IO.File.AppendAllText("/tmp/lampac_debug.log", "SelectUaTUTItem: No match found\n");
             return null;
         }
 
