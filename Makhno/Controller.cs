@@ -24,7 +24,7 @@ namespace Makhno
         }
 
         [HttpGet]
-        public async Task<ActionResult> Index(long id, string imdb_id, long kinopoisk_id, string title, string original_title, string original_language, int year, string source, int serial, string account_email, string t, int s = -1, int season = -1, bool rjson = false, bool checksearch = false)
+        public async Task<ActionResult> Index(long id, string imdb_id, long kinopoisk_id, string title, string original_title, string original_language, int year, string source, int serial, string account_email, string t, string search = null, string q = null, int s = -1, int season = -1, bool rjson = false, bool checksearch = false)
         {
             if (checksearch)
             {
@@ -35,6 +35,12 @@ namespace Makhno
             }
 
             await UpdateService.ConnectAsync(host);
+
+            if (!string.IsNullOrWhiteSpace(search))
+                title = search;
+
+            if (!string.IsNullOrWhiteSpace(q))
+                title = q;
 
             var init = await loadKit(ModInit.Makhno);
             if (!init.enable)

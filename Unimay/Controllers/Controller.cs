@@ -23,9 +23,15 @@ namespace Unimay.Controllers
 
         [HttpGet]
         [Route("unimay")]
-        async public ValueTask<ActionResult> Index(string title, string original_title, string code, int serial = -1, int s = -1, int e = -1, bool play = false, bool rjson = false, bool checksearch = false)
+        async public ValueTask<ActionResult> Index(string title, string original_title, string code, string search = null, string q = null, int serial = -1, int s = -1, int e = -1, bool play = false, bool rjson = false, bool checksearch = false)
         {
             await UpdateService.ConnectAsync(host);
+
+            if (!string.IsNullOrWhiteSpace(search))
+                title = search;
+
+            if (!string.IsNullOrWhiteSpace(q))
+                title = q;
 
             var init = await loadKit(ModInit.Unimay);
             if (await IsBadInitialization(init, rch: false))
