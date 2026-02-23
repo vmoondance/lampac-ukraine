@@ -29,17 +29,23 @@ namespace Uaflix.Controllers
         
         [HttpGet]
         [Route("uaflix")]
-        async public Task<ActionResult> Index(long id, string imdb_id, long kinopoisk_id, string title, string original_title, string original_language, int year, string source, int serial, string account_email, string t, int s = -1, int e = -1, bool play = false, bool rjson = false, string href = null, bool checksearch = false)
+        async public Task<ActionResult> Index(long id, string imdb_id, long kinopoisk_id, string title, string original_title, string original_language, int year, string source, int serial, string account_email, string t, string search = null, string q = null, int s = -1, int e = -1, bool play = false, bool rjson = false, string href = null, bool checksearch = false)
         {
             await UpdateService.ConnectAsync(host);
+
+            if (!string.IsNullOrWhiteSpace(search))
+                title = search;
+
+            if (!string.IsNullOrWhiteSpace(q))
+                title = q;
 
             var init = await loadKit(ModInit.UaFlix);
             if (await IsBadInitialization(init))
                 return Forbid();
 
             OnLog($"=== UAFLIX INDEX START ===");
-            OnLog($"Uaflix Index: title={title}, serial={serial}, s={s}, play={play}, href={href}, checksearch={checksearch}");
-            OnLog($"Uaflix Index: kinopoisk_id={kinopoisk_id}, imdb_id={imdb_id}, id={id}");
+            OnLog($"Uaflix Index: title={title}, original_title={original_title}, serial={serial}, s={s}, play={play}, href={href}, checksearch={checksearch}");
+            OnLog($"Uaflix Index: kinopoisk_id={kinopoisk_id}, imdb_id={imdb_id}, id={id}, search={search}, q={q}");
             OnLog($"Uaflix Index: year={year}, source={source}, t={t}, e={e}, rjson={rjson}");
 
             var auth = new UaflixAuth(init, memoryCache, OnLog, proxyManager);
